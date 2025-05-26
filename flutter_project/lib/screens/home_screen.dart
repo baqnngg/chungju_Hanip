@@ -6,7 +6,10 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('한입충주')),
+      appBar: AppBar(
+        title: Text('한입충주'),
+        automaticallyImplyLeading: false,
+      ),
       body: Column(
         children: [
           Padding(
