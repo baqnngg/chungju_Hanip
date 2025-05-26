@@ -6,32 +6,36 @@ void main() => runApp(HanipChungjuApp());
 class HanipChungjuApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    const beige = Color(0xFFF5EEDC);      // 메인 베이지
+    const beigeDark = Color(0xFFD8CAB8);  // 어두운 베이지
+    const brownText = Color(0xFF5D4037);  // 진한 갈색
+
     return MaterialApp(
       title: '한입충주',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        // 색상 팔레트 강화 - primarySwatch 대신 색상 세부 조정
         colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.deepOrange, // 진한 주황으로 포인트
+          seedColor: beige,
           brightness: Brightness.light,
         ),
-        scaffoldBackgroundColor: Colors.grey[50], // 너무 하얀색보다 부드럽게
-        fontFamily: 'NanumGothic', // 한국어 지원 좋은 폰트로 변경 (pubspec.yaml에 추가 필요)
+        scaffoldBackgroundColor: Colors.grey[50],
+        fontFamily: 'NanumGothic',
         appBarTheme: AppBarTheme(
-          backgroundColor: Colors.deepOrange,
+          backgroundColor: beige,
           elevation: 4,
           centerTitle: true,
           titleTextStyle: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
-            color: Colors.white,
+            color: brownText,
             letterSpacing: 1.2,
           ),
-          iconTheme: IconThemeData(color: Colors.white),
+          iconTheme: IconThemeData(color: brownText),
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.deepOrange,
+            backgroundColor: beigeDark,
+            foregroundColor: brownText,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
             ),
@@ -40,8 +44,8 @@ class HanipChungjuApp extends StatelessWidget {
           ),
         ),
         textTheme: TextTheme(
-          titleLarge: TextStyle(color: Colors.deepOrange.shade700),
-          bodyMedium: TextStyle(color: Colors.grey[800], fontSize: 16),
+          titleLarge: TextStyle(color: brownText),
+          bodyMedium: TextStyle(color: Colors.grey.shade800, fontSize: 16),
         ),
         visualDensity: VisualDensity.adaptivePlatformDensity,
       ),

@@ -19,7 +19,7 @@ class SplashScreen extends StatelessWidget {
                 context,
                 MaterialPageRoute(builder: (_) => LoginScreen()),
               ),
-              child: Text('발견하기'),
+              child: Text('시작'),
             ),
           ],
         ),
