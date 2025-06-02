@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class RestaurantDetailPage extends StatefulWidget {
   final String name;
@@ -17,134 +18,189 @@ class RestaurantDetailPage extends StatefulWidget {
   }) : super(key: key);
 
   @override
-  _RestaurantDetailPageState createState() => _RestaurantDetailPageState();
+  State<RestaurantDetailPage> createState() => _RestaurantDetailPageState();
 }
 
 class _RestaurantDetailPageState extends State<RestaurantDetailPage> {
-  late final MapController _mapController;
+  final MapController _mapController = MapController();
+  final TextEditingController _reviewController = TextEditingController();
+  final SupabaseClient supabase = Supabase.instance.client;
+
+  List<Map<String, dynamic>> _reviews = [];
+  bool _loadingReviews = false;
   late LatLng _center;
-  double _currentZoom = 17.0;
-  final double _minZoom = 2.0;
-  final double _maxZoom = 20.0;
 
   @override
   void initState() {
     super.initState();
     _center = LatLng(widget.latitude, widget.longitude);
-    _mapController = MapController();
+    _loadReviews();
   }
 
-  void _zoomIn() {
-    if (_currentZoom < _maxZoom) {
-      _currentZoom += 1;
-      _mapController.move(_center, _currentZoom);
-      setState(() {});
+  Future<void> _loadReviews() async {
+    setState(() {
+      _loadingReviews = true;
+    });
+
+    try {
+      final response = await supabase
+          .from('reviews') // 리뷰 저장용 테이블명
+          .select()
+          .eq('restaurant_name', widget.name)
+          .order('created_at', ascending: false)
+          .execute();
+
+
+      final data = response.data;
+      if (data == null || !(data is List)) {
+        throw '리뷰 데이터가 없습니다.';
+      }
+
+      setState(() {
+        _reviews = List<Map<String, dynamic>>.from(data);
+      });
+    } catch (error) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('리뷰 불러오기 실패: $error')),
+      );
+    } finally {
+      setState(() {
+        _loadingReviews = false;
+      });
     }
   }
 
-  void _zoomOut() {
-    if (_currentZoom > _minZoom) {
-      _currentZoom -= 1;
-      _mapController.move(_center, _currentZoom);
-      setState(() {});
-    }
-  }
+  Future<void> _submitReview() async {
+    final text = _reviewController.text.trim();
+    if (text.isEmpty) return;
 
-  void _goToLocation() {
-    _mapController.move(_center, _currentZoom);
+    final user = supabase.auth.currentUser;
+    final username = user?.email ?? 'Anonymous';
+
+    try {
+      final response = await supabase
+          .from('reviews') // 리뷰 저장용 테이블명
+          .insert({
+        'restaurant_name': widget.name,
+        'review_text': text,
+        'user_name': username,
+        // created_at은 DB에서 자동 생성 (timestamp default now())
+      }).execute();
+
+      _reviewController.clear();
+      await _loadReviews();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('리뷰가 성공적으로 업로드되었습니다.')),
+      );
+    } catch (error) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('리뷰 업로드 실패: $error')),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(widget.name)),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(widget.name,
-                style: const TextStyle(fontSize: 30, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 12),
-            const Divider(height: 20),
-            const Text('주소',
-                style: TextStyle(fontSize: 25, fontWeight: FontWeight.bold)),
-            Text(widget.address, style: const TextStyle(fontSize: 16)),
-            const SizedBox(height: 20),
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(widget.name,
+                  style: const TextStyle(
+                      fontSize: 30, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 12),
+              const Divider(height: 20),
+              const Text('주소',
+                  style: TextStyle(fontSize: 25, fontWeight: FontWeight.bold)),
+              Text(widget.address, style: const TextStyle(fontSize: 16)),
+              const SizedBox(height: 20),
 
-            /// 지도 영역 줄이기
-            Container(
-              height: MediaQuery.of(context).size.height * 0.4,
-              child: Stack(
-                alignment: Alignment.bottomRight,
-                children: [
-                  FlutterMap(
-                    mapController: _mapController,
-                    options: MapOptions(
-                      initialCenter: _center,
-                      initialZoom: _currentZoom,
-                      maxZoom: _maxZoom,
-                      minZoom: _minZoom,
-                      backgroundColor: Colors.grey[200]!,
-                    ),
-                    children: [
-                      TileLayer(
-                        urlTemplate:
-                        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                        userAgentPackageName: 'com.example.yourapp',
-                      ),
-                      MarkerLayer(
-                        markers: [
-                          Marker(
-                            point: _center,
-                            width: 80,
-                            height: 80,
-                            child: const Icon(
-                              Icons.location_on,
-                              color: Colors.red,
-                              size: 40,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+              SizedBox(
+                height: MediaQuery.of(context).size.height * 0.3,
+                child: FlutterMap(
+                  mapController: _mapController,
+                  options: MapOptions(
+                    initialCenter: _center,
+                    initialZoom: 17.0,
+                    maxZoom: 20.0,
+                    minZoom: 2.0,
                   ),
-                  Padding(
-                    padding: const EdgeInsets.only(right: 8.0, bottom: 100),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        FloatingActionButton(
-                          heroTag: 'zoom_in_btn',
-                          mini: true,
-                          child: const Icon(Icons.zoom_in),
-                          onPressed: _zoomIn,
-                        ),
-                        const SizedBox(height: 8),
-                        FloatingActionButton(
-                          heroTag: 'zoom_out_btn',
-                          mini: true,
-                          child: const Icon(Icons.zoom_out),
-                          onPressed: _zoomOut,
+                  children: [
+                    TileLayer(
+                      urlTemplate:
+                      'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                      userAgentPackageName: 'com.example.yourapp',
+                    ),
+                    MarkerLayer(
+                      markers: [
+                        Marker(
+                          point: _center,
+                          width: 80,
+                          height: 80,
+                          child: const Icon(Icons.location_on,
+                              color: Colors.red, size: 40),
                         ),
                       ],
                     ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.only(right: 8.0, bottom: 20),
-                    child: FloatingActionButton(
-                      heroTag: 'go_to_location_btn',
-                      mini: true,
-                      child: const Icon(Icons.my_location),
-                      onPressed: _goToLocation,
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
+              const SizedBox(height: 20),
 
-            const SizedBox(height: 20),
-          ],
+              const Text('리뷰 작성',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _reviewController,
+                maxLines: 3,
+                decoration: InputDecoration(
+                  hintText: '리뷰를 작성하세요...',
+                  border: OutlineInputBorder(),
+                  suffixIcon: IconButton(
+                    icon: const Icon(Icons.send),
+                    onPressed: _submitReview,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              const Text('리뷰 목록',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+
+              _loadingReviews
+                  ? const Center(child: CircularProgressIndicator())
+                  : _reviews.isEmpty
+                  ? const Text('아직 리뷰가 없습니다.')
+                  : ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: _reviews.length,
+                itemBuilder: (context, index) {
+                  final review = _reviews[index];
+                  return Card(
+                    child: ListTile(
+                      title: Text(review['user_name'] ?? '익명'),
+                      subtitle: Text(review['review_text'] ?? ''),
+                      trailing: Text(
+                        review['created_at'] != null
+                            ? review['created_at']
+                            .toString()
+                            .substring(0, 10)
+                            : '',
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
         ),
       ),
     );
