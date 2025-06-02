@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:chungju_project/screens/BookmarkPage.dart';
@@ -21,6 +23,7 @@ class _HomeScreenState extends State<HomeScreen> {
   int offset = 0;
 
   String _searchKeyword = '';
+  Timer? _debounce;
 
   @override
   void initState() {
@@ -43,8 +46,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
     try {
       var query = Supabase.instance.client
-          .from('restaurants_geocoded')
-          .select('name, address, latitude, longitude');
+          .from('restaurants_with_review_counts')
+          .select('name, address, latitude, longitude, review_count');
 
       if (_searchKeyword.isNotEmpty) {
         query = query.ilike('name', '%$_searchKeyword%');
@@ -76,11 +79,32 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _onSearchChanged(String value) {
-    _searchKeyword = value;
-    offset = 0;
-    hasMore = true;
-    recommendedRestaurants.clear();
+    if (_debounce?.isActive ?? false) _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 500), () {
+      setState(() {
+        _searchKeyword = value;
+        offset = 0;
+        hasMore = true;
+        recommendedRestaurants.clear();
+      });
+      fetchRecommendedRestaurants();
+    });
+  }
+
+  void _clearSearch() {
+    setState(() {
+      _searchKeyword = '';
+      offset = 0;
+      hasMore = true;
+      recommendedRestaurants.clear();
+    });
     fetchRecommendedRestaurants();
+  }
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    super.dispose();
   }
 
   @override
@@ -91,26 +115,46 @@ class _HomeScreenState extends State<HomeScreen> {
           AppBar(
             title: const Text('한입충주'),
             automaticallyImplyLeading: false,
+            centerTitle: true,
+            elevation: 1,
+            backgroundColor: Colors.white,
+            foregroundColor: Colors.black87,
           ),
           Padding(
-            padding: const EdgeInsets.all(8.0),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             child: TextField(
               decoration: InputDecoration(
-                prefixIcon: const Icon(Icons.search),
+                prefixIcon: const Icon(Icons.search, color: Colors.grey),
                 hintText: '맛집 검색',
-                border:
-                OutlineInputBorder(borderRadius: BorderRadius.circular(8.0)),
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12.0),
+                    borderSide: BorderSide.none),
+                filled: true,
+                fillColor: Colors.grey.shade100,
+                suffixIcon: _searchKeyword.isNotEmpty
+                    ? IconButton(
+                  icon: const Icon(Icons.clear, color: Colors.grey),
+                  onPressed: _clearSearch,
+                )
+                    : null,
+                contentPadding:
+                const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
               ),
               onChanged: _onSearchChanged,
             ),
           ),
           Expanded(
             child: ListView(
-              children: [
-                const SectionTitle(title: '내 근처의 맛집'),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              children: _searchKeyword.isEmpty
+                  ? [
+                // 검색어 없을 때 내 근처 + 추천 + 리스트 보여주기
+                SectionTitle(title: '내 근처의 맛집'),
+                const SizedBox(height: 8),
                 RestaurantCard(
                   name: '맛집 이름1',
                   address: '충주시 중앙로 123',
+                  reviewCount: 0,
                   onTap: () {
                     Navigator.push(
                       context,
@@ -118,17 +162,20 @@ class _HomeScreenState extends State<HomeScreen> {
                         builder: (context) => RestaurantDetailPage(
                           name: '맛집 이름1',
                           address: '충주시 중앙로 123',
-                          latitude: 36.991, // 실제 좌표 넣기
+                          latitude: 36.991,
                           longitude: 127.925,
                         ),
                       ),
                     );
                   },
                 ),
-                const SectionTitle(title: '추천 맛집'),
+                const SizedBox(height: 16),
+                SectionTitle(title: '추천 맛집'),
+                const SizedBox(height: 8),
                 RestaurantCard(
                   name: '맛집 이름2',
                   address: '충주시 문화동 456',
+                  reviewCount: 0,
                   onTap: () {
                     Navigator.push(
                       context,
@@ -143,36 +190,117 @@ class _HomeScreenState extends State<HomeScreen> {
                     );
                   },
                 ),
-                const SectionTitle(title: '맛집 리스트'),
-                ...recommendedRestaurants.map((restaurant) => RestaurantCard(
-                  name: restaurant['name'] ?? '이름 없음',
-                  address: restaurant['address'] ?? '주소 없음',
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => RestaurantDetailPage(
-                          name: restaurant['name'] ?? '이름 없음',
-                          address: restaurant['address'] ?? '주소 없음',
-                          latitude: restaurant['latitude'] ?? 0.0,
-                          longitude: restaurant['longitude'] ?? 0.0,
+                const SizedBox(height: 16),
+                SectionTitle(title: '맛집 리스트'),
+                const SizedBox(height: 8),
+                ...recommendedRestaurants.map(
+                      (restaurant) => Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: RestaurantCard(
+                      name: restaurant['name'] ?? '이름 없음',
+                      address: restaurant['address'] ?? '주소 없음',
+                      reviewCount: restaurant['review_count'] ?? 0,
+                      onTap: () async {
+                        final result = await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => RestaurantDetailPage(
+                              name: restaurant['name'] ?? '이름 없음',
+                              address: restaurant['address'] ?? '주소 없음',
+                              latitude: restaurant['latitude'] ?? 0.0,
+                              longitude: restaurant['longitude'] ?? 0.0,
+                            ),
+                          ),
+                        );
+
+                        if (result == true) {
+                          offset = 0;
+                          hasMore = true;
+                          recommendedRestaurants.clear();
+                          fetchRecommendedRestaurants();
+                        }
+                      },
+                    ),
+                  ),
+                ),
+                if (hasMore)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 20),
+                    child: isLoading
+                        ? Center(child: CircularProgressIndicator())
+                        : SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: fetchRecommendedRestaurants,
+                        style: ElevatedButton.styleFrom(
+                          shape: RoundedRectangleBorder(
+                              borderRadius:
+                              BorderRadius.circular(12)),
+                          padding: const EdgeInsets.symmetric(
+                              vertical: 14),
+                        ),
+                        child: const Text(
+                          '더보기',
+                          style: TextStyle(fontSize: 16),
                         ),
                       ),
-                    );
-                  },
-                )),
+                    ),
+                  ),
+              ]
+                  : [
+                // 검색어 있을 때는 검색 결과만 보여주기
+                SectionTitle(title: '검색 결과'),
+                const SizedBox(height: 8),
+                ...recommendedRestaurants.map(
+                      (restaurant) => Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: RestaurantCard(
+                      name: restaurant['name'] ?? '이름 없음',
+                      address: restaurant['address'] ?? '주소 없음',
+                      reviewCount: restaurant['review_count'] ?? 0,
+                      onTap: () async {
+                        final result = await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => RestaurantDetailPage(
+                              name: restaurant['name'] ?? '이름 없음',
+                              address: restaurant['address'] ?? '주소 없음',
+                              latitude: restaurant['latitude'] ?? 0.0,
+                              longitude: restaurant['longitude'] ?? 0.0,
+                            ),
+                          ),
+                        );
+
+                        if (result == true) {
+                          offset = 0;
+                          hasMore = true;
+                          recommendedRestaurants.clear();
+                          fetchRecommendedRestaurants();
+                        }
+                      },
+                    ),
+                  ),
+                ),
                 if (hasMore)
-                  Column(
-                    children: [
-                      const SizedBox(height: 10),
-                      TextButton(
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 20),
+                    child: isLoading
+                        ? Center(child: CircularProgressIndicator())
+                        : SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
                         onPressed: fetchRecommendedRestaurants,
-                        child: isLoading
-                            ? const CircularProgressIndicator()
-                            : const Text('더보기'),
+                        style: ElevatedButton.styleFrom(
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                        child: const Text(
+                          '더보기',
+                          style: TextStyle(fontSize: 16),
+                        ),
                       ),
-                      const SizedBox(height: 10),
-                    ],
+                    ),
                   ),
               ],
             ),
@@ -188,6 +316,9 @@ class _HomeScreenState extends State<HomeScreen> {
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,
+        selectedItemColor: Colors.deepOrangeAccent,
+        unselectedItemColor: Colors.grey.shade600,
+        showUnselectedLabels: true,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: '홈'),
           BottomNavigationBarItem(icon: Icon(Icons.bookmark), label: '북마크'),
