@@ -4,6 +4,7 @@ import 'package:chungju_project/screens/BookmarkPage.dart';
 import '../widgets/restaurant_card.dart';
 import '../widgets/section_title.dart';
 import 'MyPage.dart';
+import 'RestaurantDetailPage.dart';
 
 class HomeScreen extends StatefulWidget {
   @override
@@ -12,11 +13,14 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
+
   List<Map<String, dynamic>> recommendedRestaurants = [];
   bool isLoading = false;
   bool hasMore = true;
   int limit = 10;
   int offset = 0;
+
+  String _searchKeyword = '';
 
   @override
   void initState() {
@@ -31,45 +35,52 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> fetchRecommendedRestaurants() async {
-    if (isLoading || !hasMore) {
-      print('fetchRecommendedRestaurants 호출 무시됨 - isLoading: $isLoading, hasMore: $hasMore');
-      return;
-    }
+    if (isLoading || !hasMore) return;
 
     setState(() {
       isLoading = true;
     });
-    print('fetchRecommendedRestaurants 시작, offset: $offset');
 
     try {
-      final response = await Supabase.instance.client
-          .from('restaurants')
-          .select('name, address')  // name, address만 선택
-          .range(offset, offset + limit - 1)
-          .execute();
+      var query = Supabase.instance.client
+          .from('restaurants_geocoded')
+          .select('name, address, latitude, longitude');
+
+      if (_searchKeyword.isNotEmpty) {
+        query = query.ilike('name', '%$_searchKeyword%');
+      }
+
+      final response = await query.range(offset, offset + limit - 1).execute();
 
       final data = response.data as List<dynamic>;
 
-      print('가져온 데이터 수: ${data.length}');
-
       if (data.length < limit) {
         hasMore = false;
-        print('더 가져올 데이터 없음, hasMore: $hasMore');
       }
 
       setState(() {
-        recommendedRestaurants.addAll(data.cast<Map<String, dynamic>>());
+        if (offset == 0) {
+          recommendedRestaurants = data.cast<Map<String, dynamic>>();
+        } else {
+          recommendedRestaurants.addAll(data.cast<Map<String, dynamic>>());
+        }
         offset += limit;
         isLoading = false;
       });
-
-      print('추천 맛집 리스트 업데이트 완료, 현재 리스트 길이: ${recommendedRestaurants.length}, 다음 offset: $offset');
     } catch (e) {
-      print('fetchRecommendedRestaurants 예외 발생: $e');
+      print('Error: $e');
       setState(() {
         isLoading = false;
       });
     }
+  }
+
+  void _onSearchChanged(String value) {
+    _searchKeyword = value;
+    offset = 0;
+    hasMore = true;
+    recommendedRestaurants.clear();
+    fetchRecommendedRestaurants();
   }
 
   @override
@@ -87,38 +98,81 @@ class _HomeScreenState extends State<HomeScreen> {
               decoration: InputDecoration(
                 prefixIcon: const Icon(Icons.search),
                 hintText: '맛집 검색',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8.0)),
+                border:
+                OutlineInputBorder(borderRadius: BorderRadius.circular(8.0)),
               ),
+              onChanged: _onSearchChanged,
             ),
           ),
           Expanded(
             child: ListView(
               children: [
                 const SectionTitle(title: '내 근처의 맛집'),
-                const RestaurantCard(
+                RestaurantCard(
                   name: '맛집 이름1',
                   address: '충주시 중앙로 123',
-                ),
-                const RestaurantCard(
-                  name: '맛집 이름2',
-                  address: '충주시 문화동 456',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => RestaurantDetailPage(
+                          name: '맛집 이름1',
+                          address: '충주시 중앙로 123',
+                          latitude: 36.991, // 실제 좌표 넣기
+                          longitude: 127.925,
+                        ),
+                      ),
+                    );
+                  },
                 ),
                 const SectionTitle(title: '추천 맛집'),
-                const RestaurantCard(
+                RestaurantCard(
                   name: '맛집 이름2',
                   address: '충주시 문화동 456',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => RestaurantDetailPage(
+                          name: '맛집 이름2',
+                          address: '충주시 문화동 456',
+                          latitude: 36.995,
+                          longitude: 127.930,
+                        ),
+                      ),
+                    );
+                  },
                 ),
                 const SectionTitle(title: '맛집 리스트'),
                 ...recommendedRestaurants.map((restaurant) => RestaurantCard(
                   name: restaurant['name'] ?? '이름 없음',
                   address: restaurant['address'] ?? '주소 없음',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => RestaurantDetailPage(
+                          name: restaurant['name'] ?? '이름 없음',
+                          address: restaurant['address'] ?? '주소 없음',
+                          latitude: restaurant['latitude'] ?? 0.0,
+                          longitude: restaurant['longitude'] ?? 0.0,
+                        ),
+                      ),
+                    );
+                  },
                 )),
                 if (hasMore)
-                  TextButton(
-                    onPressed: fetchRecommendedRestaurants,
-                    child: isLoading
-                        ? const CircularProgressIndicator()
-                        : const Text('더보기'),
+                  Column(
+                    children: [
+                      const SizedBox(height: 10),
+                      TextButton(
+                        onPressed: fetchRecommendedRestaurants,
+                        child: isLoading
+                            ? const CircularProgressIndicator()
+                            : const Text('더보기'),
+                      ),
+                      const SizedBox(height: 10),
+                    ],
                   ),
               ],
             ),
