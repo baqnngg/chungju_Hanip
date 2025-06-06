@@ -35,7 +35,9 @@ class _SignUpPageState extends State<SignUpPage> {
 
       if (response.user != null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('회원가입 성공! 로그인 페이지로 이동합니다.')),
+          const SnackBar(
+            content: Text('회원가입 성공! 이메일을 확인해 인증을 하세요.'),
+          ),
         );
         Navigator.pushReplacementNamed(context, '/login');
       } else {
@@ -81,6 +83,7 @@ class _SignUpPageState extends State<SignUpPage> {
               controller: _passwordController,
               decoration: const InputDecoration(labelText: '비밀번호'),
               obscureText: true,
+              onSubmitted: (_) => _signUp(),
             ),
             const SizedBox(height: 24),
             _loading
