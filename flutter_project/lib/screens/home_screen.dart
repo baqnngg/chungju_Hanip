@@ -53,9 +53,10 @@ class _HomeScreenState extends State<HomeScreen> {
         query = query.ilike('name', '%$_searchKeyword%');
       }
 
-      final response = await query.range(offset, offset + limit - 1).execute();
+      // Remove .execute() - just await the query directly
+      final response = await query.range(offset, offset + limit - 1);
 
-      final data = response.data as List<dynamic>;
+      final data = response as List<dynamic>;
 
       if (data.length < limit) {
         hasMore = false;
