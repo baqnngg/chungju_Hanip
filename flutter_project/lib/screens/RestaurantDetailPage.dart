@@ -56,14 +56,13 @@ class _RestaurantDetailPageState extends State<RestaurantDetailPage> {
     });
 
     try {
-      final response = await supabase
+      // Remove .execute() - just await the query directly
+      final data = await supabase
           .from('reviews')
           .select()
           .eq('restaurant_name', widget.name)
-          .order('created_at', ascending: false)
-          .execute();
+          .order('created_at', ascending: false);
 
-      final data = response.data;
       if (data == null || !(data is List)) {
         throw '리뷰 데이터가 없습니다.';
       }
