@@ -155,6 +155,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   name: '맛집 이름1',
                   address: '충주시 중앙로 123',
                   reviewCount: 0,
+                  latitude: 36.991,  // 하드코딩된 위도/경도 추가
+                  longitude: 127.925,
                   onTap: () {
                     Navigator.push(
                       context,
@@ -176,6 +178,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   name: '맛집 이름2',
                   address: '충주시 문화동 456',
                   reviewCount: 0,
+                  latitude: 36.995,  // 하드코딩된 위도/경도 추가
+                  longitude: 127.930,
                   onTap: () {
                     Navigator.push(
                       context,
@@ -194,34 +198,42 @@ class _HomeScreenState extends State<HomeScreen> {
                 SectionTitle(title: '맛집 리스트'),
                 const SizedBox(height: 8),
                 ...recommendedRestaurants.map(
-                      (restaurant) => Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: RestaurantCard(
-                      name: restaurant['name'] ?? '이름 없음',
-                      address: restaurant['address'] ?? '주소 없음',
-                      reviewCount: restaurant['review_count'] ?? 0,
-                      onTap: () async {
-                        final result = await Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => RestaurantDetailPage(
-                              name: restaurant['name'] ?? '이름 없음',
-                              address: restaurant['address'] ?? '주소 없음',
-                              latitude: restaurant['latitude'] ?? 0.0,
-                              longitude: restaurant['longitude'] ?? 0.0,
-                            ),
-                          ),
-                        );
+                      (restaurant) {
+                    // 위도/경도 값 확인 및 디버깅
+                    double? lat = restaurant['latitude']?.toDouble();
+                    double? lng = restaurant['longitude']?.toDouble();
 
-                        if (result == true) {
-                          offset = 0;
-                          hasMore = true;
-                          recommendedRestaurants.clear();
-                          fetchRecommendedRestaurants();
-                        }
-                      },
-                    ),
-                  ),
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: RestaurantCard(
+                        name: restaurant['name'] ?? '이름 없음',
+                        address: restaurant['address'] ?? '주소 없음',
+                        reviewCount: restaurant['review_count'] ?? 0,
+                        latitude: lat,  // double로 변환된 값 전달
+                        longitude: lng, // double로 변환된 값 전달
+                        onTap: () async {
+                          final result = await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => RestaurantDetailPage(
+                                name: restaurant['name'] ?? '이름 없음',
+                                address: restaurant['address'] ?? '주소 없음',
+                                latitude: lat ?? 36.991,  // null인 경우 기본값
+                                longitude: lng ?? 127.925, // null인 경우 기본값
+                              ),
+                            ),
+                          );
+
+                          if (result == true) {
+                            offset = 0;
+                            hasMore = true;
+                            recommendedRestaurants.clear();
+                            fetchRecommendedRestaurants();
+                          }
+                        },
+                      ),
+                    );
+                  },
                 ),
                 if (hasMore)
                   Padding(
@@ -252,34 +264,42 @@ class _HomeScreenState extends State<HomeScreen> {
                 SectionTitle(title: '검색 결과'),
                 const SizedBox(height: 8),
                 ...recommendedRestaurants.map(
-                      (restaurant) => Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: RestaurantCard(
-                      name: restaurant['name'] ?? '이름 없음',
-                      address: restaurant['address'] ?? '주소 없음',
-                      reviewCount: restaurant['review_count'] ?? 0,
-                      onTap: () async {
-                        final result = await Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => RestaurantDetailPage(
-                              name: restaurant['name'] ?? '이름 없음',
-                              address: restaurant['address'] ?? '주소 없음',
-                              latitude: restaurant['latitude'] ?? 0.0,
-                              longitude: restaurant['longitude'] ?? 0.0,
-                            ),
-                          ),
-                        );
+                      (restaurant) {
+                    // 위도/경도 값 확인 및 디버깅
+                    double? lat = restaurant['latitude']?.toDouble();
+                    double? lng = restaurant['longitude']?.toDouble();
 
-                        if (result == true) {
-                          offset = 0;
-                          hasMore = true;
-                          recommendedRestaurants.clear();
-                          fetchRecommendedRestaurants();
-                        }
-                      },
-                    ),
-                  ),
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: RestaurantCard(
+                        name: restaurant['name'] ?? '이름 없음',
+                        address: restaurant['address'] ?? '주소 없음',
+                        reviewCount: restaurant['review_count'] ?? 0,
+                        latitude: lat,  // double로 변환된 값 전달
+                        longitude: lng, // double로 변환된 값 전달
+                        onTap: () async {
+                          final result = await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => RestaurantDetailPage(
+                                name: restaurant['name'] ?? '이름 없음',
+                                address: restaurant['address'] ?? '주소 없음',
+                                latitude: lat ?? 36.991,  // null인 경우 기본값
+                                longitude: lng ?? 127.925, // null인 경우 기본값
+                              ),
+                            ),
+                          );
+
+                          if (result == true) {
+                            offset = 0;
+                            hasMore = true;
+                            recommendedRestaurants.clear();
+                            fetchRecommendedRestaurants();
+                          }
+                        },
+                      ),
+                    );
+                  },
                 ),
                 if (hasMore)
                   Padding(
