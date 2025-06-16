@@ -7,6 +7,7 @@ import '../widgets/restaurant_card.dart';
 import '../widgets/section_title.dart';
 import 'MyPage.dart';
 import 'RestaurantDetailPage.dart';
+import 'my location_page.dart';
 
 class HomeScreen extends StatefulWidget {
   @override
@@ -328,8 +329,10 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
+      NearbyRestaurantPage(),
       BookmarkPage(),
       MyPage(),
+
     ];
 
     return Scaffold(
@@ -342,6 +345,7 @@ class _HomeScreenState extends State<HomeScreen> {
         showUnselectedLabels: true,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: '홈'),
+          BottomNavigationBarItem(icon: Icon(Icons.location_on), label: '내 근처'),
           BottomNavigationBarItem(icon: Icon(Icons.bookmark), label: '북마크'),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: '마이'),
         ],
