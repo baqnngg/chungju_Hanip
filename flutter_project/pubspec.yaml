@@ -36,6 +36,8 @@ dependencies:
   path_provider:
   url_launcher: ^6.2.5
 
+  geolocator:
+
   flutter_map: ^8.1.1
   latlong2:
 

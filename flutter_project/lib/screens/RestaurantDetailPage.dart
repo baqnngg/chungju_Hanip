@@ -2,12 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:geolocator/geolocator.dart';
 
 class RestaurantDetailPage extends StatefulWidget {
   final String name;
   final String address;
   final double latitude;
   final double longitude;
+  final double? myLatitude;  // 선택적 매개변수로 변경
+  final double? myLongitude; // 선택적 매개변수로 변경
 
   const RestaurantDetailPage({
     Key? key,
@@ -15,6 +18,8 @@ class RestaurantDetailPage extends StatefulWidget {
     required this.address,
     required this.latitude,
     required this.longitude,
+    this.myLatitude,  // 선택적으로 변경
+    this.myLongitude, // 선택적으로 변경
   }) : super(key: key);
 
   @override
@@ -29,12 +34,30 @@ class _RestaurantDetailPageState extends State<RestaurantDetailPage> {
   List<Map<String, dynamic>> _reviews = [];
   bool _loadingReviews = false;
   late LatLng _center;
+  LatLng? _myLocation;  // null 가능하도록 변경
+  int? _distance;       // null 가능하도록 변경
   String currentNickname = '익명';
+  bool _hasLocationData = false; // 위치 데이터 유무 확인용
 
   @override
   void initState() {
     super.initState();
     _center = LatLng(widget.latitude, widget.longitude);
+
+    // 위치 데이터가 있는지 확인
+    if (widget.myLatitude != null && widget.myLongitude != null) {
+      _myLocation = LatLng(widget.myLatitude!, widget.myLongitude!);
+      _hasLocationData = true;
+
+      // 거리 계산
+      _distance = Geolocator.distanceBetween(
+        widget.myLatitude!,
+        widget.myLongitude!,
+        widget.latitude,
+        widget.longitude,
+      ).round();
+    }
+
     _loadUserNickname();
     _loadReviews();
   }
@@ -56,7 +79,6 @@ class _RestaurantDetailPageState extends State<RestaurantDetailPage> {
     });
 
     try {
-      // Remove .execute() - just await the query directly
       final data = await supabase
           .from('reviews')
           .select()
@@ -98,8 +120,6 @@ class _RestaurantDetailPageState extends State<RestaurantDetailPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('리뷰가 성공적으로 업로드되었습니다.')),
       );
-
-      // 뒤로 가지 않고 현재 페이지 유지 (Navigator.pop 제거)
     } catch (error) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('리뷰 업로드 실패: $error')),
@@ -114,7 +134,6 @@ class _RestaurantDetailPageState extends State<RestaurantDetailPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('리뷰가 삭제되었습니다.')),
       );
-      // 삭제 후에도 뒤로가기 시 알림 필요하면 여기에 Navigator.pop(context, true); 추가 가능
     } catch (error) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('리뷰 삭제 실패: $error')),
@@ -153,7 +172,6 @@ class _RestaurantDetailPageState extends State<RestaurantDetailPage> {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('리뷰가 수정되었습니다.')),
                   );
-                  // 필요 시 Navigator.pop(context, true); 추가 가능
                 } catch (error) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text('리뷰 수정 실패: $error')),
@@ -170,7 +188,15 @@ class _RestaurantDetailPageState extends State<RestaurantDetailPage> {
 
   Future<bool> _onWillPop() async {
     Navigator.pop(context, true);
-    return false; // 기본 뒤로가기 막음
+    return false;
+  }
+
+  // 선의 중점 계산 (위치 데이터가 있을 때만)
+  LatLng _getMidPoint(LatLng point1, LatLng point2) {
+    return LatLng(
+      (point1.latitude + point2.latitude) / 2,
+      (point1.longitude + point2.longitude) / 2,
+    );
   }
 
   @override
@@ -189,19 +215,50 @@ class _RestaurantDetailPageState extends State<RestaurantDetailPage> {
                     style: const TextStyle(
                         fontSize: 30, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 12),
+
+                // 위치 정보가 있을 때만 거리 표시
+                if (_hasLocationData && _distance != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.blue[50],
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.blue[200]!),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.location_on, color: Colors.blue, size: 20),
+                        const SizedBox(width: 8),
+                        Text(
+                          '내 위치에서 ${_distance}m',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.blue,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                const SizedBox(height: 12),
                 const Divider(height: 20),
                 const Text('주소',
                     style:
                     TextStyle(fontSize: 25, fontWeight: FontWeight.bold)),
                 Text(widget.address, style: const TextStyle(fontSize: 16)),
                 const SizedBox(height: 20),
+
                 SizedBox(
                   height: MediaQuery.of(context).size.height * 0.3,
                   child: FlutterMap(
                     mapController: _mapController,
                     options: MapOptions(
-                      initialCenter: _center,
-                      initialZoom: 17.0,
+                      // 위치 데이터가 있으면 중점으로, 없으면 레스토랑 위치로 중심 설정
+                      initialCenter: _hasLocationData && _myLocation != null
+                          ? _getMidPoint(_myLocation!, _center)
+                          : _center,
+                      initialZoom: 16.0,
                       maxZoom: 20.0,
                       minZoom: 2.0,
                     ),
@@ -211,20 +268,86 @@ class _RestaurantDetailPageState extends State<RestaurantDetailPage> {
                         'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                         userAgentPackageName: 'com.example.yourapp',
                       ),
+
+                      // 위치 데이터가 있을 때만 선 그리기
+                      if (_hasLocationData && _myLocation != null)
+                        PolylineLayer(
+                          polylines: [
+                            Polyline(
+                              points: [_myLocation!, _center],
+                              strokeWidth: 3.0,
+                              color: Colors.blue,
+                            ),
+                          ],
+                        ),
+
+                      // 마커들
                       MarkerLayer(
                         markers: [
+                          // 위치 데이터가 있을 때만 내 위치 마커 표시
+                          if (_hasLocationData && _myLocation != null)
+                            Marker(
+                              point: _myLocation!,
+                              width: 80,
+                              height: 80,
+                              child: const Column(
+                                children: [
+                                  Icon(Icons.my_location, color: Colors.blue, size: 35),
+                                  Text('내 위치', style: TextStyle(fontSize: 10, color: Colors.blue, fontWeight: FontWeight.bold)),
+                                ],
+                              ),
+                            ),
+
+                          // 레스토랑 위치 마커 (항상 표시)
                           Marker(
                             point: _center,
                             width: 80,
                             height: 80,
-                            child: const Icon(Icons.location_on,
-                                color: Colors.red, size: 40),
+                            child: const Column(
+                              children: [
+                                Icon(Icons.restaurant, color: Colors.red, size: 35),
+                                Text('식당', style: TextStyle(fontSize: 10, color: Colors.red, fontWeight: FontWeight.bold)),
+                              ],
+                            ),
                           ),
+
+                          // 위치 데이터가 있을 때만 거리 표시 마커
+                          if (_hasLocationData && _myLocation != null && _distance != null)
+                            Marker(
+                              point: _getMidPoint(_myLocation!, _center),
+                              width: 100,
+                              height: 40,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: Colors.blue, width: 2),
+                                  boxShadow: const [
+                                    BoxShadow(
+                                      color: Colors.black26,
+                                      blurRadius: 4,
+                                      offset: Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: Text(
+                                  '${_distance}m',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.blue,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            ),
                         ],
                       ),
                     ],
                   ),
                 ),
+
                 const SizedBox(height: 20),
                 const Text('리뷰 작성',
                     style:
