@@ -17,9 +17,10 @@ class _NearbyRestaurantPageState extends State<NearbyRestaurantPage>
   bool isLoading = true;
   String errorMsg = '';
 
-  // 고정 위치 좌표 (위치 권한 불필요)
-  final double fixedLat = 36.94610;
-  final double fixedLng = 127.9387;
+  // 현재 위치 좌표
+  double? currentLat;
+  double? currentLng;
+  bool isLocationLoading = true;
 
   // 거리 선택 관련
   int selectedDistance = 1000; // 기본값 1km
@@ -54,7 +55,7 @@ class _NearbyRestaurantPageState extends State<NearbyRestaurantPage>
       end: Offset.zero,
     ).animate(CurvedAnimation(parent: _slideController, curve: Curves.easeOutCubic));
 
-    fetchNearbyRestaurants();
+    _getCurrentLocation();
   }
 
   @override
@@ -64,7 +65,84 @@ class _NearbyRestaurantPageState extends State<NearbyRestaurantPage>
     super.dispose();
   }
 
+  // 위치 권한 확인 및 요청
+  Future<bool> _handleLocationPermission() async {
+    bool serviceEnabled;
+    LocationPermission permission;
+
+    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      setState(() {
+        errorMsg = '위치 서비스가 비활성화되어 있습니다.\n설정에서 위치 서비스를 켜주세요.';
+        isLocationLoading = false;
+      });
+      return false;
+    }
+
+    permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        setState(() {
+          errorMsg = '위치 권한이 거부되었습니다.\n앱 설정에서 위치 권한을 허용해주세요.';
+          isLocationLoading = false;
+        });
+        return false;
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      setState(() {
+        errorMsg = '위치 권한이 영구적으로 거부되었습니다.\n설정에서 권한을 허용해주세요.';
+        isLocationLoading = false;
+      });
+      return false;
+    }
+
+    return true;
+  }
+
+  // 현재 위치 가져오기
+  Future<void> _getCurrentLocation() async {
+    setState(() {
+      isLocationLoading = true;
+      errorMsg = '';
+    });
+
+    final hasPermission = await _handleLocationPermission();
+    if (!hasPermission) return;
+
+    try {
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
+      setState(() {
+        currentLat = position.latitude;
+        currentLng = position.longitude;
+        isLocationLoading = false;
+      });
+
+      // 위치를 가져온 후 식당 데이터 불러오기
+      fetchNearbyRestaurants();
+    } catch (e) {
+      setState(() {
+        errorMsg = '현재 위치를 가져오는데 실패했습니다.\n잠시 후 다시 시도해주세요.';
+        isLocationLoading = false;
+      });
+      print('🚨 위치 가져오기 오류: $e');
+    }
+  }
+
   Future<void> fetchNearbyRestaurants() async {
+    if (currentLat == null || currentLng == null) {
+      setState(() {
+        errorMsg = '위치 정보가 없습니다.';
+        isLoading = false;
+      });
+      return;
+    }
+
     setState(() {
       isLoading = true;
       errorMsg = '';
@@ -74,7 +152,7 @@ class _NearbyRestaurantPageState extends State<NearbyRestaurantPage>
     _slideController.reset();
 
     try {
-      print('📍 고정 좌표 기준 검색: ($fixedLat, $fixedLng) - 반경: ${selectedDistance}m');
+      print('📍 현재 위치 기준 검색: ($currentLat, $currentLng) - 반경: ${selectedDistance}m');
 
       final data = await Supabase.instance.client
           .from('restaurants_geocoded')
@@ -99,8 +177,8 @@ class _NearbyRestaurantPageState extends State<NearbyRestaurantPage>
           final double lng = lngRaw is int ? lngRaw.toDouble() : lngRaw;
 
           final distance = Geolocator.distanceBetween(
-            fixedLat,
-            fixedLng,
+            currentLat!,
+            currentLng!,
             lat,
             lng,
           );
@@ -130,7 +208,7 @@ class _NearbyRestaurantPageState extends State<NearbyRestaurantPage>
 
     } catch (e) {
       setState(() {
-        errorMsg = '데이터 불러오는 중 오류 발생!';
+        errorMsg = '데이터를 불러오는 중 오류가 발생했습니다.';
         isLoading = false;
       });
       print('🚨 맛집 데이터 오류: $e');
@@ -153,9 +231,9 @@ class _NearbyRestaurantPageState extends State<NearbyRestaurantPage>
           address: restaurant['address'],
           latitude: restaurant['latitude'],
           longitude: restaurant['longitude'],
-          // 고정 위치 정보 전달
-          myLatitude: fixedLat,
-          myLongitude: fixedLng,
+          // 현재 위치 정보 전달
+          myLatitude: currentLat ?? 0,
+          myLongitude: currentLng ?? 0,
         ),
       ),
     ).then((value) {
@@ -187,6 +265,15 @@ class _NearbyRestaurantPageState extends State<NearbyRestaurantPage>
             color: Colors.white,
           ),
         ),
+        actions: [
+          // 새로고침 버튼 추가
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: () {
+              _getCurrentLocation(); // 위치와 데이터 새로고침
+            },
+          ),
+        ],
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
@@ -196,6 +283,59 @@ class _NearbyRestaurantPageState extends State<NearbyRestaurantPage>
   }
 
   Widget _buildLocationCard() {
+    // 위치 로딩 중이거나 에러 상태일 때 다른 UI 표시
+    if (isLocationLoading) {
+      return Container(
+        margin: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Colors.white.withOpacity(0.3),
+              Colors.white.withOpacity(0.1),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: Colors.white.withOpacity(0.2),
+            width: 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF4facfe), Color(0xFF00f2fe)],
+                ),
+                borderRadius: BorderRadius.circular(15),
+              ),
+              child: const SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: 2,
+                ),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Text(
+              '현재 위치 확인 중...',
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey[600],
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Container(
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(20),
@@ -259,7 +399,9 @@ class _NearbyRestaurantPageState extends State<NearbyRestaurantPage>
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '${fixedLat.toStringAsFixed(5)}, ${fixedLng.toStringAsFixed(5)}',
+                  currentLat != null && currentLng != null
+                      ? '${currentLat!.toStringAsFixed(5)}, ${currentLng!.toStringAsFixed(5)}'
+                      : '위치 정보 없음',
                   style: TextStyle(
                     fontSize: 14,
                     color: Colors.grey[600],
@@ -597,85 +739,111 @@ class _NearbyRestaurantPageState extends State<NearbyRestaurantPage>
       body: Column(
         children: [
           _buildGradientAppBar(),
-
           Expanded(
-            child: SingleChildScrollView(
-              child: Column(
-                children: [
-                  _buildLocationCard(),
-                  _buildDistanceSelector(),
-                  _buildResultsCounter(),
+            child: RefreshIndicator(
+              onRefresh: _getCurrentLocation,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: Column(
+                  children: [
+                    _buildLocationCard(),
+                    if (!isLocationLoading && errorMsg.isEmpty) _buildDistanceSelector(),
+                    if (!isLocationLoading && errorMsg.isEmpty) _buildResultsCounter(),
 
-                  if (isLoading)
-                    Container(
-                      padding: const EdgeInsets.all(50),
-                      child: Column(
-                        children: [
-                          Container(
-                            width: 60,
-                            height: 60,
-                            decoration: BoxDecoration(
-                              gradient: const LinearGradient(
-                                colors: [Color(0xFF667eea), Color(0xFF764ba2)],
-                              ),
-                              borderRadius: BorderRadius.circular(30),
-                            ),
-                            child: const Center(
-                              child: CircularProgressIndicator(
-                                color: Colors.white,
-                                strokeWidth: 3,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-                          const Text(
-                            '맛집을 찾고 있어요...',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.grey,
-                            ),
-                          ),
-                        ],
-                      ),
-                    )
-                  else if (errorMsg.isNotEmpty)
-                    Center(
-                      child: Container(
-                        margin: const EdgeInsets.all(20),
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: Colors.red[50],
-                          borderRadius: BorderRadius.circular(15),
-                          border: Border.all(color: Colors.red[200]!),
-                        ),
-                        child: Text(
-                          errorMsg,
-                          style: TextStyle(
-                            color: Colors.red[700],
-                            fontSize: 16,
-                          ),
-                        ),
-                      ),
-                    )
-                  else if (nearbyRestaurants.isEmpty)
+                    if (isLocationLoading || isLoading)
                       Container(
-                        height: 300,
-                        child: _buildEmptyState(),
+                        padding: const EdgeInsets.all(50),
+                        child: Column(
+                          children: [
+                            Container(
+                              width: 60,
+                              height: 60,
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  colors: [Color(0xFF667eea), Color(0xFF764ba2)],
+                                ),
+                                borderRadius: BorderRadius.circular(30),
+                              ),
+                              child: const Center(
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 3,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+                            Text(
+                              isLocationLoading ? '위치를 확인하고 있어요...' : '맛집을 찾고 있어요...',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.grey,
+                              ),
+                            ),
+                          ],
+                        ),
                       )
-                    else
-                      ListView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: nearbyRestaurants.length,
-                        itemBuilder: (context, index) {
-                          final restaurant = nearbyRestaurants[index];
-                          return _buildRestaurantCard(restaurant, index);
-                        },
-                      ),
+                    else if (errorMsg.isNotEmpty)
+                      Center(
+                        child: Container(
+                          margin: const EdgeInsets.all(20),
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: Colors.red[50],
+                            borderRadius: BorderRadius.circular(15),
+                            border: Border.all(color: Colors.red[200]!),
+                          ),
+                          child: Column(
+                            children: [
+                              Icon(
+                                Icons.error_outline,
+                                color: Colors.red[700],
+                                size: 48,
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                errorMsg,
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: Colors.red[700],
+                                  fontSize: 16,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              ElevatedButton(
+                                onPressed: _getCurrentLocation,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.red[700],
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                ),
+                                child: const Text('다시 시도'),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    else if (nearbyRestaurants.isEmpty)
+                        Container(
+                          height: 300,
+                          child: _buildEmptyState(),
+                        )
+                      else
+                        ListView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: nearbyRestaurants.length,
+                          itemBuilder: (context, index) {
+                            final restaurant = nearbyRestaurants[index];
+                            return _buildRestaurantCard(restaurant, index);
+                          },
+                        ),
 
-                  const SizedBox(height: 20),
-                ],
+                    const SizedBox(height: 20),
+                  ],
+                ),
               ),
             ),
           ),

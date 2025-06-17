@@ -100,6 +100,7 @@ class _MyPageState extends State<MyPage> {
     await Supabase.instance.client.from('user_profiles').upsert({
       'id': user.id,
       'nickname': nickname,
+      'email' : user.email,
     });
 
     ScaffoldMessenger.of(context).showSnackBar(
