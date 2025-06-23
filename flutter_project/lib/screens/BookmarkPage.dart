@@ -43,14 +43,14 @@ class _BookmarkPageState extends State<BookmarkPage> {
         });
       }
     } catch (e) {
-      print('북마크 로드 오류: $e');
+      print('즐겨찾기 로드 오류: $e');
       if (mounted) {
         setState(() {
           isLoading = false;
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('북마크를 불러오는데 실패했습니다'),
+            content: Text('즐겨찾기를 불러오는데 실패했습니다'),
             backgroundColor: Colors.red.shade400,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -74,7 +74,7 @@ class _BookmarkPageState extends State<BookmarkPage> {
             children: [
               Icon(Icons.check_circle, color: Colors.white, size: 20),
               SizedBox(width: 8),
-              Text('$restaurantName 북마크가 해제되었습니다'),
+              Text('$restaurantName 즐겨찾기가 해제되었습니다'),
             ],
           ),
           backgroundColor: Colors.orange.shade400,
@@ -85,7 +85,7 @@ class _BookmarkPageState extends State<BookmarkPage> {
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('북마크 해제 실패'),
+          content: Text('즐겨찾기 해제 실패'),
           backgroundColor: Colors.red.shade400,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -108,7 +108,7 @@ class _BookmarkPageState extends State<BookmarkPage> {
             Icon(Icons.favorite, color: Colors.red.shade400, size: 24),
             SizedBox(width: 8),
             Text(
-              '북마크',
+              '즐겨찾기',
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w700,
@@ -116,6 +116,10 @@ class _BookmarkPageState extends State<BookmarkPage> {
               ),
             ),
           ],
+        ),
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: Colors.grey.shade500),
+          onPressed: () => Navigator.pushReplacementNamed(context, '/home'),
         ),
         automaticallyImplyLeading: false,
         centerTitle: true,
@@ -165,7 +169,7 @@ class _BookmarkPageState extends State<BookmarkPage> {
               ),
               SizedBox(height: 8),
               Text(
-                '북마크 기능을 사용하려면\n로그인해주세요',
+                '즐겨찾기 기능을 사용하려면\n로그인해주세요',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 14,
@@ -187,7 +191,7 @@ class _BookmarkPageState extends State<BookmarkPage> {
             ),
             SizedBox(height: 16),
             Text(
-              '북마크를 불러오는 중...',
+              '즐겨찾기를 불러오는 중...',
               style: TextStyle(
                 color: Colors.grey.shade600,
                 fontSize: 14,
@@ -229,7 +233,7 @@ class _BookmarkPageState extends State<BookmarkPage> {
               ),
               SizedBox(height: 20),
               Text(
-                '북마크한 맛집이 없습니다',
+                '즐겨찾기한 맛집이 없습니다',
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.w600,
@@ -238,7 +242,7 @@ class _BookmarkPageState extends State<BookmarkPage> {
               ),
               SizedBox(height: 8),
               Text(
-                '마음에 드는 맛집을 찾아서\n북마크해보세요!',
+                '마음에 드는 맛집을 찾아서\n즐겨찾기해보세요!',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 14,
@@ -367,7 +371,7 @@ class _BookmarkPageState extends State<BookmarkPage> {
                             ],
                           ),
                         ),
-                        // 북마크 버튼
+                        // 즐겨찾기 버튼
                         Container(
                           decoration: BoxDecoration(
                             color: Colors.red.shade50,
@@ -383,7 +387,7 @@ class _BookmarkPageState extends State<BookmarkPage> {
                               bookmark['id'],
                               bookmark['restaurant_name'],
                             ),
-                            tooltip: '북마크 해제',
+                            tooltip: '즐겨찾기 해제',
                             splashRadius: 20,
                           ),
                         ),

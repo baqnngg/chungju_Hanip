@@ -23,57 +23,91 @@ class RestaurantCard extends StatefulWidget {
   State<RestaurantCard> createState() => _RestaurantCardState();
 }
 
-class _RestaurantCardState extends State<RestaurantCard> {
+class _RestaurantCardState extends State<RestaurantCard>
+    with SingleTickerProviderStateMixin {
   bool isBookmarked = false;
   bool isLoading = false;
-  final SupabaseClient supabase = Supabase.instance.client;
+  late AnimationController _animationController;
+  late Animation<double> _scaleAnimation;
 
   @override
   void initState() {
     super.initState();
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 200),
+      vsync: this,
+    );
+    _scaleAnimation = Tween<double>(
+      begin: 1.0,
+      end: 0.95,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeInOut,
+    ));
     _checkBookmarkStatus();
   }
 
-  Future<void> _checkBookmarkStatus() async {
-    final user = supabase.auth.currentUser;
-    if (user == null) return;
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
 
+  Future<void> _checkBookmarkStatus() async {
     try {
-      final response = await supabase
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null) return;
+
+      final response = await Supabase.instance.client
           .from('bookmarks')
           .select()
           .eq('user_id', user.id)
           .eq('restaurant_name', widget.name)
           .maybeSingle();
+
       if (mounted) {
         setState(() {
           isBookmarked = response != null;
         });
       }
     } catch (e) {
-      print('북마크 상태 확인 오류: $e');
+      debugPrint('북마크 상태 확인 오류: $e');
     }
   }
 
   Future<void> _toggleBookmark() async {
-    final user = supabase.auth.currentUser;
-    if (user == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('로그인이 필요합니다.')),
-      );
-      return;
-    }
-
-    if (isLoading) return;
-
-    setState(() {
-      isLoading = true;
-    });
-
     try {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Row(
+                children: [
+                  Icon(Icons.info_outline, color: Colors.white),
+                  SizedBox(width: 8),
+                  Text('로그인이 필요합니다.'),
+                ],
+              ),
+              backgroundColor: Colors.orange,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+          );
+        }
+        return;
+      }
+
+      if (isLoading) return;
+
+      setState(() {
+        isLoading = true;
+      });
+
       if (isBookmarked) {
-        // 북마크 제거
-        await supabase
+        await Supabase.instance.client
             .from('bookmarks')
             .delete()
             .eq('user_id', user.id)
@@ -84,31 +118,80 @@ class _RestaurantCardState extends State<RestaurantCard> {
             isBookmarked = false;
           });
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('북마크에서 제거되었습니다.')),
+            SnackBar(
+              content: const Row(
+                children: [
+                  Icon(Icons.favorite_border, color: Colors.white),
+                  SizedBox(width: 8),
+                  Text('즐겨찾기에서 제거됨'),
+                ],
+              ),
+              backgroundColor: Colors.grey.shade600,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
           );
         }
       } else {
-        // 북마크 추가
-        await supabase.from('bookmarks').insert({
+        final bookmarkData = <String, dynamic>{
           'user_id': user.id,
           'restaurant_name': widget.name,
           'restaurant_address': widget.address,
-          'latitude': widget.latitude,
-          'longitude': widget.longitude,
-        });
+        };
+
+        if (widget.latitude != null) {
+          bookmarkData['latitude'] = widget.latitude;
+        }
+        if (widget.longitude != null) {
+          bookmarkData['longitude'] = widget.longitude;
+        }
+
+        await Supabase.instance.client
+            .from('bookmarks')
+            .insert(bookmarkData);
+
         if (mounted) {
           setState(() {
             isBookmarked = true;
           });
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('북마크에 추가되었습니다.')),
+            SnackBar(
+              content: const Row(
+                children: [
+                  Icon(Icons.favorite, color: Colors.white),
+                  SizedBox(width: 8),
+                  Text('즐겨찾기에 추가됨'),
+                ],
+              ),
+              backgroundColor: Colors.pinkAccent,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
           );
         }
       }
     } catch (e) {
+      debugPrint('북마크 처리 오류: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('오류가 발생했습니다: $e')),
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.error_outline, color: Colors.white),
+                const SizedBox(width: 8),
+                Expanded(child: Text('오류가 발생했습니다: $e')),
+              ],
+            ),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
         );
       }
     } finally {
@@ -122,63 +205,163 @@ class _RestaurantCardState extends State<RestaurantCard> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      child: Material(
-        color: Colors.white,
-        elevation: 2,
-        borderRadius: BorderRadius.circular(8),
-        child: InkWell(
-          onTap: widget.onTap,
-          borderRadius: BorderRadius.circular(8),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                // 왼쪽 텍스트 정보
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+    return AnimatedBuilder(
+      animation: _scaleAnimation,
+      builder: (context, child) {
+        return Transform.scale(
+          scale: _scaleAnimation.value,
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: widget.onTap,
+                onTapDown: (_) => _animationController.forward(),
+                onTapUp: (_) => _animationController.reverse(),
+                onTapCancel: () => _animationController.reverse(),
+                borderRadius: BorderRadius.circular(16),
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Row(
                     children: [
-                      Text(
-                        widget.name,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
+                      // 아이콘
+                      Container(
+                        width: 60,
+                        height: 60,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              Colors.orange.shade400,
+                              Colors.orange.shade600,
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.orange.withOpacity(0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.restaurant,
+                          color: Colors.white,
+                          size: 28,
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      Text(widget.address),
-                      const SizedBox(height: 8),
-                      Text(
-                        '리뷰 수: ${widget.reviewCount}',
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey,
+                      const SizedBox(width: 20),
+
+                      // 식당 정보
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              widget.name,
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 6),
+                            Row(
+                              children: [
+                                Icon(Icons.location_on_outlined,
+                                    size: 16, color: Colors.grey.shade600),
+                                const SizedBox(width: 4),
+                                Expanded(
+                                  child: Text(
+                                    widget.address,
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.grey.shade600,
+                                    ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.blue.shade50,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: Colors.blue.shade100,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.star_rounded,
+                                      size: 16, color: Colors.blue.shade600),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    '리뷰 ${widget.reviewCount}개',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.blue.shade700,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+
+                      // 하트 버튼 (리디자인)
+                      AnimatedScale(
+                        scale: isBookmarked ? 1.2 : 1.0,
+                        duration: const Duration(milliseconds: 200),
+                        curve: Curves.easeOutBack,
+                        child: IconButton(
+                          onPressed: _toggleBookmark,
+                          icon: Icon(
+                            isBookmarked
+                                ? Icons.favorite
+                                : Icons.favorite_border,
+                            color: isBookmarked
+                                ? Colors.pinkAccent
+                                : Colors.grey.shade400,
+                            size: 28,
+                          ),
+                          splashRadius: 24,
+                          tooltip: isBookmarked ? '즐겨찾기 제거' : '즐겨찾기 추가',
                         ),
                       ),
                     ],
                   ),
                 ),
-                // 오른쪽 북마크 버튼
-                isLoading
-                    ? const SizedBox(
-                  width: 24,
-                  height: 24,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-                    : IconButton(
-                  icon: Icon(
-                    isBookmarked ? Icons.favorite : Icons.favorite_border,
-                    color: isBookmarked ? Colors.red : Colors.grey,
-                  ),
-                  onPressed: _toggleBookmark,
-                ),
-              ],
+              ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }

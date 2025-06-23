@@ -26,6 +26,8 @@ class _HomeScreenState extends State<HomeScreen>
 
   String _searchKeyword = '';
   Timer? _debounce;
+  // Add a TextEditingController
+  final TextEditingController _searchControllerText = TextEditingController();
 
   late AnimationController _searchController;
   late AnimationController _listController;
@@ -70,6 +72,8 @@ class _HomeScreenState extends State<HomeScreen>
     _searchController.dispose();
     _listController.dispose();
     _debounce?.cancel();
+    // Dispose the TextEditingController
+    _searchControllerText.dispose();
     super.dispose();
   }
 
@@ -138,6 +142,8 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   void _clearSearch() {
+    // Clear the text in the TextField
+    _searchControllerText.clear();
     setState(() {
       _searchKeyword = '';
       offset = 0;
@@ -221,6 +227,8 @@ class _HomeScreenState extends State<HomeScreen>
           ],
         ),
         child: TextField(
+          // Assign the controller here
+          controller: _searchControllerText,
           decoration: InputDecoration(
             prefixIcon: Container(
               margin: const EdgeInsets.all(12),
@@ -389,149 +397,6 @@ class _HomeScreenState extends State<HomeScreen>
     );
   }
 
-  Widget _buildRestaurantItem(Map<String, dynamic> restaurant, int index) {
-    double? lat = restaurant['latitude']?.toDouble();
-    double? lng = restaurant['longitude']?.toDouble();
-
-    return FadeTransition(
-      opacity: _listAnimation,
-      child: SlideTransition(
-        position: _slideAnimation,
-        child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                Colors.white,
-                Colors.white.withOpacity(0.9),
-              ],
-            ),
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.08),
-                blurRadius: 20,
-                offset: const Offset(0, 10),
-              ),
-            ],
-          ),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(20),
-              onTap: () async {
-                final result = await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => RestaurantDetailPage(
-                      name: restaurant['name'] ?? '이름 없음',
-                      address: restaurant['address'] ?? '주소 없음',
-                      latitude: lat ?? 36.991,
-                      longitude: lng ?? 127.925,
-                    ),
-                  ),
-                );
-
-                if (result == true) {
-                  offset = 0;
-                  hasMore = true;
-                  recommendedRestaurants.clear();
-                  fetchRecommendedRestaurants();
-                }
-              },
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 60,
-                      height: 60,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            Colors.orange.withOpacity(0.8),
-                            Colors.deepOrange.withOpacity(0.8),
-                          ],
-                        ),
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.orange.withOpacity(0.3),
-                            blurRadius: 10,
-                            offset: const Offset(0, 5),
-                          ),
-                        ],
-                      ),
-                      child: const Icon(
-                        Icons.restaurant,
-                        color: Colors.white,
-                        size: 28,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            restaurant['name'] ?? '이름 없음',
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black87,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            restaurant['address'] ?? '주소 없음',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey[600],
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    if ((restaurant['review_count'] ?? 0) > 0)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF4facfe), Color(0xFF00f2fe)],
-                          ),
-                          borderRadius: BorderRadius.circular(15),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.star, color: Colors.white, size: 14),
-                            const SizedBox(width: 4),
-                            Text(
-                              '${restaurant['review_count']}',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildLoadMoreButton() {
     return Container(
       margin: const EdgeInsets.all(20),
@@ -651,34 +516,21 @@ class _HomeScreenState extends State<HomeScreen>
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => RestaurantDetailPage(
-                                name: '맛집 이름1',
-                                address: '충주시 중앙로 123',
-                                latitude: 36.991,
-                                longitude: 127.925,
-                              ),
+                              builder: (context) => NearbyRestaurantPage(),
                             ),
                           );
                         },
                       ),
 
                       _buildFeatureCard(
-                        title: '추천 맛집',
-                        subtitle: '엄선된 인기 맛집들을 만나보세요',
-                        icon: Icons.recommend,
+                        title: '북마크한 맛집',
+                        subtitle: '저장한 맛집들을 확인해보세요',
+                        icon: Icons.bookmark,
                         gradientColors: [const Color(0xFFa8edea), const Color(0xFFfed6e3)],
                         onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => RestaurantDetailPage(
-                                name: '맛집 이름2',
-                                address: '충주시 문화동 456',
-                                latitude: 36.995,
-                                longitude: 127.930,
-                              ),
-                            ),
-                          );
+                          setState(() {
+                            _selectedIndex = 2;
+                          });
                         },
                       ),
 
@@ -695,8 +547,48 @@ class _HomeScreenState extends State<HomeScreen>
                       ),
                     ],
 
-                    ...recommendedRestaurants.asMap().entries.map(
-                          (entry) => _buildRestaurantItem(entry.value, entry.key),
+                    // RestaurantCard를 올바른 파라미터로 사용
+                    FadeTransition(
+                      opacity: _listAnimation,
+                      child: SlideTransition(
+                        position: _slideAnimation,
+                        child: Column(
+                          children: recommendedRestaurants.map(
+                                (restaurant) => RestaurantCard(
+                              name: restaurant['name'] ?? '이름 없음',
+                              address: restaurant['address'] ?? '주소 없음',
+                              reviewCount: (restaurant['review_count'] ?? 0) as int,
+                              latitude: restaurant['latitude']?.toDouble(),
+                              longitude: restaurant['longitude']?.toDouble(),
+                              onTap: () async {
+                                double? lat = restaurant['latitude']?.toDouble();
+                                double? lng = restaurant['longitude']?.toDouble();
+
+                                final result = await Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => RestaurantDetailPage(
+                                      name: restaurant['name'] ?? '이름 없음',
+                                      address: restaurant['address'] ?? '주소 없음',
+                                      latitude: lat ?? 36.991,
+                                      longitude: lng ?? 127.925,
+                                    ),
+                                  ),
+                                );
+
+                                if (result == true) {
+                                  setState(() {
+                                    offset = 0;
+                                    hasMore = true;
+                                    recommendedRestaurants.clear();
+                                  });
+                                  fetchRecommendedRestaurants();
+                                }
+                              },
+                            ),
+                          ).toList(),
+                        ),
+                      ),
                     ),
 
                     if (isLoading)
@@ -802,11 +694,11 @@ class _HomeScreenState extends State<HomeScreen>
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
-                  Icons.bookmark,
+                  Icons.favorite,
                   color: _selectedIndex == 2 ? Colors.white : Colors.grey.shade500,
                 ),
               ),
-              label: '북마크',
+              label: '즐겨찾기',
             ),
             BottomNavigationBarItem(
               icon: Container(

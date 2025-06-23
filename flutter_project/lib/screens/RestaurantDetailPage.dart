@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:supabase/supabase.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class RestaurantDetailPage extends StatefulWidget {
   final String name;
@@ -243,7 +244,8 @@ class _RestaurantDetailPageState extends State<RestaurantDetailPage> {
                                 content: const Text('리뷰가 수정되었습니다.'),
                                 backgroundColor: Colors.green[400],
                                 behavior: SnackBarBehavior.floating,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12)),
                               ),
                             );
                           } catch (error) {
@@ -261,7 +263,9 @@ class _RestaurantDetailPageState extends State<RestaurantDetailPage> {
                           ),
                           elevation: 2,
                         ),
-                        child: const Text('저장', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                        child: const Text('저장',
+                            style:
+                            TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                       ),
                     ),
                   ],
@@ -394,7 +398,8 @@ class _RestaurantDetailPageState extends State<RestaurantDetailPage> {
                                 if (_hasLocationData && _distance != null) ...[
                                   const SizedBox(height: 16),
                                   Container(
-                                    padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 8, horizontal: 16),
                                     decoration: BoxDecoration(
                                       color: Colors.blue[50],
                                       borderRadius: BorderRadius.circular(12),
@@ -403,7 +408,8 @@ class _RestaurantDetailPageState extends State<RestaurantDetailPage> {
                                     child: Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        Icon(Icons.my_location, color: Colors.blue[700], size: 18),
+                                        Icon(Icons.my_location,
+                                            color: Colors.blue[700], size: 18),
                                         const SizedBox(width: 8),
                                         Text(
                                           '내 위치에서 ${_distance}m',
@@ -501,11 +507,13 @@ class _RestaurantDetailPageState extends State<RestaurantDetailPage> {
                                           ),
                                         ],
                                       ),
-                                      child: const Icon(Icons.my_location, color: Colors.white, size: 20),
+                                      child: const Icon(Icons.my_location,
+                                          color: Colors.white, size: 20),
                                     ),
                                     const SizedBox(height: 4),
                                     Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 6, vertical: 2),
                                       decoration: BoxDecoration(
                                         color: Colors.white,
                                         borderRadius: BorderRadius.circular(8),
@@ -547,11 +555,13 @@ class _RestaurantDetailPageState extends State<RestaurantDetailPage> {
                                         ),
                                       ],
                                     ),
-                                    child: const Icon(Icons.restaurant, color: Colors.white, size: 20),
+                                    child: const Icon(Icons.restaurant,
+                                        color: Colors.white, size: 20),
                                   ),
                                   const SizedBox(height: 4),
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 6, vertical: 2),
                                     decoration: BoxDecoration(
                                       color: Colors.white,
                                       borderRadius: BorderRadius.circular(8),
@@ -580,7 +590,8 @@ class _RestaurantDetailPageState extends State<RestaurantDetailPage> {
                                 width: 100,
                                 height: 40,
                                 child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                  padding:
+                                  const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                                   decoration: BoxDecoration(
                                     color: Colors.white,
                                     borderRadius: BorderRadius.circular(16),
@@ -754,37 +765,43 @@ class _RestaurantDetailPageState extends State<RestaurantDetailPage> {
                         : _reviews.isEmpty
                         ? Container(
                       padding: const EdgeInsets.all(30),
-                      child: Column(
-                        children: [
-                          Icon(
-                            Icons.rate_review_outlined,
-                            size: 48,
-                            color: Colors.grey[400],
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            '아직 리뷰가 없습니다.',
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: Colors.grey[600],
+                      child: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.rate_review_outlined,
+                              size: 48,
+                              color: Colors.grey[400],
                             ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            '첫 번째 리뷰를 남겨보세요!',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey[500],
+                            const SizedBox(height: 12),
+                            Text(
+                              '아직 리뷰가 없습니다.',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.grey[600],
+                              ),
+                              textAlign: TextAlign.center,
                             ),
-                          ),
-                        ],
+                            const SizedBox(height: 8),
+                            Text(
+                              '첫 번째 리뷰를 남겨보세요!',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: Colors.grey[500],
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
                       ),
                     )
                         : ListView.separated(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
                       itemCount: _reviews.length,
-                      separatorBuilder: (context, index) => const SizedBox(height: 12),
+                      separatorBuilder: (context, index) =>
+                      const SizedBox(height: 12),
                       itemBuilder: (context, index) {
                         final review = _reviews[index];
                         final isMine = review['user_name'] == currentNickname;
@@ -798,7 +815,9 @@ class _RestaurantDetailPageState extends State<RestaurantDetailPage> {
                             color: isMine ? Colors.orange[50] : Colors.grey[50],
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(
-                              color: isMine ? Colors.orange[200]! : Colors.grey[200]!,
+                              color: isMine
+                                  ? Colors.orange[200]!
+                                  : Colors.grey[200]!,
                             ),
                           ),
                           child: Column(
@@ -809,19 +828,24 @@ class _RestaurantDetailPageState extends State<RestaurantDetailPage> {
                                   Container(
                                     padding: const EdgeInsets.all(8),
                                     decoration: BoxDecoration(
-                                      color: isMine ? Colors.orange[200] : Colors.grey[300],
+                                      color: isMine
+                                          ? Colors.orange[200]
+                                          : Colors.grey[300],
                                       borderRadius: BorderRadius.circular(20),
                                     ),
                                     child: Icon(
                                       Icons.person,
                                       size: 16,
-                                      color: isMine ? Colors.orange[800] : Colors.grey[700],
+                                      color: isMine
+                                          ? Colors.orange[800]
+                                          : Colors.grey[700],
                                     ),
                                   ),
                                   const SizedBox(width: 12),
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                      CrossAxisAlignment.start,
                                       children: [
                                         Row(
                                           children: [
@@ -835,18 +859,24 @@ class _RestaurantDetailPageState extends State<RestaurantDetailPage> {
                                             if (isMine) ...[
                                               const SizedBox(width: 8),
                                               Container(
-                                                padding: const EdgeInsets.symmetric(
-                                                    horizontal: 8, vertical: 2),
+                                                padding: const EdgeInsets
+                                                    .symmetric(
+                                                    horizontal: 8,
+                                                    vertical: 2),
                                                 decoration: BoxDecoration(
                                                   color: Colors.orange[200],
-                                                  borderRadius: BorderRadius.circular(8),
+                                                  borderRadius:
+                                                  BorderRadius.circular(
+                                                      8),
                                                 ),
                                                 child: Text(
                                                   '내 리뷰',
                                                   style: TextStyle(
                                                     fontSize: 10,
-                                                    fontWeight: FontWeight.bold,
-                                                    color: Colors.orange[800],
+                                                    fontWeight:
+                                                    FontWeight.bold,
+                                                    color:
+                                                    Colors.orange[800],
                                                   ),
                                                 ),
                                               ),
@@ -871,10 +901,12 @@ class _RestaurantDetailPageState extends State<RestaurantDetailPage> {
                                         Container(
                                           decoration: BoxDecoration(
                                             color: Colors.white,
-                                            borderRadius: BorderRadius.circular(8),
+                                            borderRadius:
+                                            BorderRadius.circular(8),
                                             boxShadow: [
                                               BoxShadow(
-                                                color: Colors.black.withOpacity(0.1),
+                                                color: Colors.black
+                                                    .withOpacity(0.1),
                                                 blurRadius: 2,
                                               ),
                                             ],
@@ -885,8 +917,10 @@ class _RestaurantDetailPageState extends State<RestaurantDetailPage> {
                                               size: 18,
                                               color: Colors.orange[600],
                                             ),
-                                            onPressed: () => _editReview(review),
-                                            constraints: const BoxConstraints(
+                                            onPressed: () =>
+                                                _editReview(review),
+                                            constraints:
+                                            const BoxConstraints(
                                               minWidth: 36,
                                               minHeight: 36,
                                             ),
@@ -896,10 +930,12 @@ class _RestaurantDetailPageState extends State<RestaurantDetailPage> {
                                         Container(
                                           decoration: BoxDecoration(
                                             color: Colors.white,
-                                            borderRadius: BorderRadius.circular(8),
+                                            borderRadius:
+                                            BorderRadius.circular(8),
                                             boxShadow: [
                                               BoxShadow(
-                                                color: Colors.black.withOpacity(0.1),
+                                                color: Colors.black
+                                                    .withOpacity(0.1),
                                                 blurRadius: 2,
                                               ),
                                             ],
@@ -910,8 +946,11 @@ class _RestaurantDetailPageState extends State<RestaurantDetailPage> {
                                               size: 18,
                                               color: Colors.red[600],
                                             ),
-                                            onPressed: () => _deleteReview(review['id'] as int),
-                                            constraints: const BoxConstraints(
+                                            onPressed: () =>
+                                                _deleteReview(
+                                                    review['id'] as int),
+                                            constraints:
+                                            const BoxConstraints(
                                               minWidth: 36,
                                               minHeight: 36,
                                             ),
@@ -927,7 +966,8 @@ class _RestaurantDetailPageState extends State<RestaurantDetailPage> {
                                 decoration: BoxDecoration(
                                   color: Colors.white,
                                   borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: Colors.grey[200]!),
+                                  border:
+                                  Border.all(color: Colors.grey[200]!),
                                 ),
                                 child: Text(
                                   review['review_text'] ?? '',

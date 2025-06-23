@@ -265,6 +265,11 @@ class _NearbyRestaurantPageState extends State<NearbyRestaurantPage>
             color: Colors.white,
           ),
         ),
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.pushReplacementNamed(context, '/home'),
+        ),
+        // Removed automaticallyImplyLeading: false to allow the back button
         actions: [
           // 새로고침 버튼 추가
           IconButton(
@@ -277,7 +282,7 @@ class _NearbyRestaurantPageState extends State<NearbyRestaurantPage>
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
-        iconTheme: const IconThemeData(color: Colors.white),
+        iconTheme: const IconThemeData(color: Colors.white), // Re-added this for consistent icon coloring
       ),
     );
   }
