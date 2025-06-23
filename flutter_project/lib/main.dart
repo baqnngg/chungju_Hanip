@@ -2,23 +2,26 @@ import 'package:chungju_project/screens/home_screen.dart';
 import 'package:chungju_project/screens/signup_page.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'dart:html' as html;
 
 import 'screens/splash_screen.dart';
 import 'screens/login_page.dart';
 import 'screens/start_page.dart';
 
+// ✅ dart-define으로 전달되는 값 받기
+const supabaseUrl = String.fromEnvironment('SUPABASE_URL');
+const supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  const supabaseUrl = String.fromEnvironment('SUPABASE_URL');
-  const supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
-
+  print(supabaseUrl);
 
   await Supabase.initialize(
     url: supabaseUrl,
     anonKey: supabaseAnonKey,
   );
+
+  print(supabaseUrl);
 
   runApp(const HanipChungjuApp());
 }
