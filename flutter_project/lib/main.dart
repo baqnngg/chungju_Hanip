@@ -1,19 +1,23 @@
 import 'package:chungju_project/screens/home_screen.dart';
 import 'package:chungju_project/screens/signup_page.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'dart:html' as html;
+
 import 'screens/splash_screen.dart';
 import 'screens/login_page.dart';
 import 'screens/start_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await dotenv.load();
+
+  const supabaseUrl = String.fromEnvironment('SUPABASE_URL');
+  const supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
+
 
   await Supabase.initialize(
-    url: dotenv.env['SUPABASE_URL']!,
-    anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
+    url: supabaseUrl,
+    anonKey: supabaseAnonKey,
   );
 
   runApp(const HanipChungjuApp());
@@ -73,7 +77,7 @@ class HanipChungjuApp extends StatelessWidget {
         '/login': (context) => LoginPage(),
         '/home': (context) => HomeScreen(),
         '/signup': (context) => SignUpPage(),
-        '/Start_page': (context) => StartPage()
+        '/Start_page': (context) => StartPage(),
       },
     );
   }
