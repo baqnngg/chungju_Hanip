@@ -14,6 +14,18 @@ class _LoginPageState extends State<LoginPage> {
   bool _loading = false;
   bool _obscurePassword = true; // 비밀번호 표시/숨김 상태 관리
 
+  @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+
+    const supabaseUrl = String.fromEnvironment('SUPABASE_URL');
+    const supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
+
+    print(supabaseUrl);
+    print(supabaseAnonKey);
+  }
+
   Future<void> _login() async {
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
